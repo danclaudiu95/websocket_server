@@ -19,8 +19,6 @@
 #include "tlse.c"
 
 
-#include "process_command.h"
-
 
 #define SERVER_VERSION "2017.12.17.4"
 
@@ -29,6 +27,10 @@
 #define BUFFER_SIZE             0xFFFF
 #define LINE_SIZE               8192
 #define DEBUG_INFO(msg, data)   fprintf(stderr, msg, data);
+
+#define print_message(out, message) printf(out, "%s\n",message)
+#define MAXIM(a,b) a > b ? a : b
+
 
 enum {
 	METHOD_UNKNOWN,
@@ -422,19 +424,7 @@ void on_ws_data(struct HTTPConnection *connection, const char *buffer, int size)
 {
 	//DEBUG_INFO("WS DATA: %s\n", buffer);
 	//	if (size == 2)
-	int result = process_command(buffer[0], buffer[1]);
-	if (result == E_OK) {
-		if (buffer[1] == CAPTURE_HEAD_CAMERA || buffer[1] == CAPTURE_LEFT_ARM_CAMERA) {
-			char tmp_buffer[2];
-			sprintf(tmp_buffer, "%d", E_OK);
-			ws_send(connection, tmp_buffer, 1);
-		}
-	}
-	else {
-		char tmp_buffer[2];
-		sprintf(tmp_buffer, "%d", result);
-		ws_send(connection, tmp_buffer, 1);
-	}
+
 }
 //--------------------------------------------------------------------
 int on_data_received(struct HTTPConnection *connection, const char *buffer, int size)
@@ -619,24 +609,11 @@ int main(int argc, char *argv[])
 	socklen_t c;
 	struct sockaddr_in server, client;
 
-	char log_filename[1000];
-	current_time_to_string(log_filename);
-	strcat(log_filename, ".txt");
-
-	f_log = fopen(log_filename, "w");
-
-	if (!f_log) {
-		printf("Cannot write log file! Press Enter to terminate.");
-		getchar();
-		return 1;
-	}
 
 	char message[1000];
 
 	sprintf(message, "Server version: %s\n", SERVER_VERSION);
 	print_message(stdout, message);
-	print_message(f_log, message);
-
 
 	memset(connections, 0, sizeof(connections));	
 
@@ -651,8 +628,6 @@ int main(int argc, char *argv[])
 	if (socket_desc == -1) {
 		sprintf(message, "Could not create socket");
 		print_message(stdout, message);
-		print_message(f_log, message);
-		fclose(f_log);
 
 
 		return 0;
@@ -668,9 +643,6 @@ int main(int argc, char *argv[])
 	if (bind(socket_desc, (struct sockaddr *)&server, sizeof(server)) < 0) {
 		sprintf(message, "bind failed. Error\n");
 		print_message(stdout, message);
-		print_message(f_log, message);
-
-		fclose(f_log);
 		return 1;
 	}
 
@@ -684,9 +656,6 @@ int main(int argc, char *argv[])
 	if (!server_ctx) {
 		sprintf(message, "Error creating server context\n");
 		print_message(stdout, message);
-		print_message(f_log, message);
-
-		fclose(f_log);
 
 		return -1;
 	}
@@ -697,9 +666,7 @@ int main(int argc, char *argv[])
 	if (!SSL_CTX_check_private_key(server_ctx)) {
 		sprintf(message, "Private key not loaded\n");
 		print_message(stdout, message);
-		print_message(f_log, message);
 
-		fclose(f_log);
 		return -2;
 	}
 
